@@ -11,11 +11,17 @@
 <body>
   <header class="topbar">
     <a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">B</span> Budjetim</a>
+    {% if user.is_authenticated %}
     <nav aria-label="Asosiy menyu">
       <a href="{% url 'dashboard' %}">Bosh sahifa</a>
       <a href="{% url 'categories' %}">Kategoriyalar</a>
       <a class="nav-action" href="{% url 'transaction_create' %}">+ Tranzaksiya</a>
     </nav>
+    <form method="post" action="{% url 'logout' %}">
+      {% csrf_token %}
+      <button class="button light" type="submit">Chiqish</button>
+    </form>
+    {% endif %}
   </header>
 
   <main class="page">

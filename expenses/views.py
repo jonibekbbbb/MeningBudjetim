@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -8,6 +9,7 @@ from .forms import ExpenseCategoryForm, TransactionFilterForm, TransactionForm
 from .models import ExpenseCategory, Transaction
 
 
+@login_required
 def dashboard(request):
     filter_form = TransactionFilterForm(request.GET or None)
     transactions = Transaction.objects.select_related("category")
@@ -62,6 +64,7 @@ def dashboard(request):
     )
 
 
+@login_required
 def transaction_create(request):
     requested_type = request.GET.get("type")
     transaction_type = (
@@ -91,6 +94,7 @@ def transaction_create(request):
 
 
 @require_POST
+@login_required
 def transaction_delete(request, transaction_id):
     transaction = get_object_or_404(Transaction, pk=transaction_id)
     title = transaction.title
@@ -99,6 +103,7 @@ def transaction_delete(request, transaction_id):
     return redirect("dashboard")
 
 
+@login_required
 def category_list(request):
     form = ExpenseCategoryForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -114,6 +119,7 @@ def category_list(request):
 
 
 @require_POST
+@login_required
 def category_delete(request, category_id):
     category = get_object_or_404(ExpenseCategory, pk=category_id)
     if category.transactions.exists():

@@ -1,6 +1,10 @@
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
+from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -46,6 +50,11 @@ class TransactionFormTests(TestCase):
 
 class DashboardTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="test-user",
+            password="test-password-123",
+        )
+        self.client.force_login(self.user)
         self.food, _ = ExpenseCategory.objects.get_or_create(
             name="Oziq-ovqat", defaults={"color": "#22aa88"}
         )
@@ -216,6 +225,13 @@ class DashboardTests(TestCase):
 
 
 class CategoryTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username="test-user",
+            password="test-password-123",
+        )
+        self.client.force_login(self.user)
+
     def test_category_can_be_created(self):
         response = self.client.post(
             reverse("categories"),
@@ -241,3 +257,61 @@ class CategoryTests(TestCase):
 
         self.assertRedirects(response, reverse("categories"))
         self.assertTrue(ExpenseCategory.objects.filter(pk=category.pk).exists())
+
+
+class AuthenticationTests(TestCase):
+    def test_dashboard_redirects_to_login_for_anonymous_user(self):
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('dashboard')}",
+        )
+
+    def test_login_page_is_available_without_authentication(self):
+        response = self.client.get(reverse("login"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_login_and_logout(self):
+        get_user_model().objects.create_user(
+            username="private-user",
+            password="strong-test-password",
+        )
+        response = self.client.post(
+            reverse("login"),
+            {"username": "private-user", "password": "strong-test-password"},
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertIn("_auth_user_id", self.client.session)
+
+        response = self.client.post(reverse("logout"))
+
+        self.assertRedirects(response, reverse("login"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+
+class DeploymentAccountCommandTests(TestCase):
+    @patch.dict(
+        "os.environ",
+        {
+            "DJANGO_DEPLOY_USERNAME": "deploy-demo",
+            "DJANGO_DEPLOY_PASSWORD": "Maple-Boat-Skyline-2026!",
+        },
+    )
+    def test_command_creates_a_protected_superuser(self):
+        call_command("ensure_deploy_user")
+
+        user = get_user_model().objects.get(username="deploy-demo")
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password("Maple-Boat-Skyline-2026!"))
+
+    @patch.dict(
+        "os.environ",
+        {"DJANGO_DEPLOY_USERNAME": "", "DJANGO_DEPLOY_PASSWORD": ""},
+    )
+    def test_command_requires_deployment_credentials(self):
+        with self.assertRaises(CommandError):
+            call_command("ensure_deploy_user")

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Kirish · Budjetim{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">SHAXSIY HISOB</p><h1>Hisobga kirish</h1><p class="muted">Davom etish uchun login va parolingizni kiriting.</p></div>
+</section>
+<section class="panel form-panel">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="field">
+      <label for="{{ form.username.id_for_label }}">Login</label>
+      {{ form.username }}
+      {{ form.username.errors }}
+    </div>
+    <div class="field">
+      <label for="{{ form.password.id_for_label }}">Parol</label>
+      {{ form.password }}
+      {{ form.password.errors }}
+    </div>
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="form-actions">
+      <button class="button primary" type="submit">Kirish</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

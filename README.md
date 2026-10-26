@@ -2,7 +2,13 @@
 
 Django va SQLite asosidagi shaxsiy kirim-chiqim hisoblagichi. Ilova tranzaksiyalarni boshqaradi, balansni hisoblaydi, sanalar va kategoriyalar bo‘yicha filtrlash hamda xarajatlar diagrammasini taqdim etadi.
 
-## Ishga tushirish (Windows)
+## Ishga tushirish (Windows, VS Code)
+
+Loyihani VS Code’da ochganingizda VS Code avtomatik ishga tushirish vazifasini tasdiqlashni so‘rashi mumkin. **Allow Automatic Tasks** ni tanlang. U virtual muhitni tayyorlaydi, kerakli kutubxonalarni o‘rnatadi va bazani yangilaydi. Birinchi marta ishga tushganda terminalda lokal admin hisobini yaratish so‘raladi. Keyin server yoqiladi; brauzerda `http://127.0.0.1:8000/` manzilini oching.
+
+Serverni to‘xtatish uchun terminalda `Ctrl+C` bosing. Avtomatik vazifani boshqarish: **Terminal → Configure Tasks**.
+
+## Qo‘lda ishga tushirish (Windows)
 
 PowerShell oynasida loyiha papkasiga o‘ting va virtual muhitni faollashtiring:
 
@@ -22,6 +28,7 @@ Kutubxonalarni o‘rnating, ma’lumotlar bazasini tayyorlang va serverni ishga 
 ```powershell
 python -m pip install -r requirements.txt
 python manage.py migrate
+python manage.py createsuperuser
 python manage.py runserver
 ```
 
@@ -44,4 +51,14 @@ Chiqim uchun kategoriya talab qilinadi; kirimga kategoriya biriktirilmaydi. Tran
 python manage.py test
 ```
 
-Ma’lumotlar `db.sqlite3` faylida saqlanadi. Bu loyiha hozircha lokal, bitta foydalanuvchi foydalanishi uchun mo‘ljallangan; internetga joylashdan oldin autentifikatsiya, maxfiy kalit va production sozlamalarini qo‘shing.
+Ma’lumotlar `db.sqlite3` faylida saqlanadi. Ilova sahifalari login bilan himoyalangan va lokal sinov uchun standart Django foydalanuvchisini yaratish mumkin:
+
+```powershell
+python manage.py createsuperuser
+```
+
+## Render’da demo sifatida joylash
+
+GitHub’dagi repozitoriyni Render’ga ulang va `render.yaml` orqali **Blueprint** yarating. Render so‘raganda `DJANGO_DEPLOY_USERNAME` hamda kuchli `DJANGO_DEPLOY_PASSWORD` qiymatlarini maxfiy environment variable sifatida kiriting. Ilova shaxsiy hisob sahifalarini login bilan himoyalaydi; deploy foydalanuvchisi server ishga tushganda shu qiymatlardan yaratiladi.
+
+Bu sozlama Render’ning bepul web xizmatida SQLite’dan foydalanadi. Bepul xizmatning fayl tizimi doimiy emas: qayta deploy yoki restart paytida tranzaksiyalar va foydalanuvchi ma’lumotlari yo‘qolishi mumkin. Faqat sinov uchun ishlating, haqiqiy moliyaviy ma’lumot kiritmang. Ma’lumotlarni saqlash kerak bo‘lsa, doimiy disk yoki boshqariladigan PostgreSQL bazasi bilan pullik hostingga o‘ting.

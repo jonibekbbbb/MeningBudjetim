@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: meningbudjetim
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input
+    startCommand: python manage.py migrate --noinput && python manage.py ensure_deploy_user && gunicorn config.wsgi:application
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: DJANGO_DEPLOY_USERNAME
+        sync: false
+      - key: DJANGO_DEPLOY_PASSWORD
+        sync: false
