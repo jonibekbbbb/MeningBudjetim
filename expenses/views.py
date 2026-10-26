@@ -1,18 +1,58 @@
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Sum
+from django.db import transaction as db_transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .forms import ExpenseCategoryForm, TransactionFilterForm, TransactionForm
+from .forms import (
+    ExpenseCategoryForm,
+    RegistrationForm,
+    TransactionFilterForm,
+    TransactionForm,
+)
 from .models import ExpenseCategory, Transaction
+
+DEFAULT_CATEGORIES = [
+    ("Oziq-ovqat", "#4caf93"),
+    ("Transport", "#f2a65a"),
+    ("Ta’lim", "#6c63ff"),
+    ("Kiyim-kechak", "#e879a9"),
+    ("Uy-joy", "#4d9de0"),
+    ("Sog‘liq", "#e76f51"),
+    ("Boshqa", "#8d99ae"),
+]
+
+
+def register(request):
+    if request.user.is_authenticated:
+        return redirect("dashboard")
+
+    form = RegistrationForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        with db_transaction.atomic():
+            user = form.save()
+            ExpenseCategory.objects.bulk_create(
+                [
+                    ExpenseCategory(user=user, name=name, color=color)
+                    for name, color in DEFAULT_CATEGORIES
+                ]
+            )
+        login(request, user)
+        messages.success(request, "Hisobingiz yaratildi. Xush kelibsiz!")
+        return redirect("dashboard")
+
+    return render(request, "registration/register.html", {"form": form})
 
 
 @login_required
 def dashboard(request):
-    filter_form = TransactionFilterForm(request.GET or None)
-    transactions = Transaction.objects.select_related("category")
+    filter_form = TransactionFilterForm(request.GET or None, user=request.user)
+    transactions = Transaction.objects.filter(user=request.user).select_related(
+        "category"
+    )
     filter_is_valid = filter_form.is_valid()
 
     if filter_is_valid:
@@ -74,9 +114,11 @@ def transaction_create(request):
     if transaction_type:
         initial["type"] = transaction_type
 
-    form = TransactionForm(request.POST or None, initial=initial)
+    form = TransactionForm(request.POST or None, initial=initial, user=request.user)
     if request.method == "POST" and form.is_valid():
-        transaction = form.save()
+        transaction = form.save(commit=False)
+        transaction.user = request.user
+        transaction.save()
         messages.success(request, f"“{transaction.title}” tranzaksiyasi saqlandi.")
         return redirect("dashboard")
 
@@ -96,7 +138,11 @@ def transaction_create(request):
 @require_POST
 @login_required
 def transaction_delete(request, transaction_id):
-    transaction = get_object_or_404(Transaction, pk=transaction_id)
+    transaction = get_object_or_404(
+        Transaction,
+        pk=transaction_id,
+        user=request.user,
+    )
     title = transaction.title
     transaction.delete()
     messages.success(request, f"“{title}” tranzaksiyasi o‘chirildi.")
@@ -105,23 +151,32 @@ def transaction_delete(request, transaction_id):
 
 @login_required
 def category_list(request):
-    form = ExpenseCategoryForm(request.POST or None)
+    form = ExpenseCategoryForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
-        category = form.save()
+        category = form.save(commit=False)
+        category.user = request.user
+        category.save()
         messages.success(request, f"“{category.name}” kategoriyasi qo‘shildi.")
         return redirect("categories")
 
     return render(
         request,
         "expenses/categories.html",
-        {"form": form, "categories": ExpenseCategory.objects.all()},
+        {
+            "form": form,
+            "categories": ExpenseCategory.objects.filter(user=request.user),
+        },
     )
 
 
 @require_POST
 @login_required
 def category_delete(request, category_id):
-    category = get_object_or_404(ExpenseCategory, pk=category_id)
+    category = get_object_or_404(
+        ExpenseCategory,
+        pk=category_id,
+        user=request.user,
+    )
     if category.transactions.exists():
         messages.error(request, "Tranzaksiyalarda ishlatilayotgan kategoriyani o‘chirib bo‘lmaydi.")
     else:

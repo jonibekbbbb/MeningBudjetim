@@ -1,6 +1,6 @@
 # Shaxsiy xarajatlar hisoblagichi
 
-Django va SQLite asosidagi shaxsiy kirim-chiqim hisoblagichi. Ilova tranzaksiyalarni boshqaradi, balansni hisoblaydi, sanalar va kategoriyalar bo‘yicha filtrlash hamda xarajatlar diagrammasini taqdim etadi.
+Django va SQLite asosidagi budjet hisoblagichi. Har bir foydalanuvchi alohida hisob yaratadi; tranzaksiyalar va kategoriyalar uning shaxsiy panelida saqlanadi va boshqa foydalanuvchilarga ko‘rinmaydi.
 
 ## Ishga tushirish (Windows, VS Code)
 
@@ -51,7 +51,9 @@ Chiqim uchun kategoriya talab qilinadi; kirimga kategoriya biriktirilmaydi. Tran
 python manage.py test
 ```
 
-Ma’lumotlar `db.sqlite3` faylida saqlanadi. Ilova sahifalari login bilan himoyalangan va lokal sinov uchun standart Django foydalanuvchisini yaratish mumkin:
+Ma’lumotlar `db.sqlite3` faylida saqlanadi. Ilova ichida **Ro‘yxatdan o‘tish** havolasi orqali har bir kishi o‘z login va parolini yaratadi. Eski umumiy budjet yozuvlari migratsiya vaqtida avvaldan mavjud superuser hisobiga biriktiriladi; superuser bo‘lmasa, tizimga kira olmaydigan `legacy-budget-owner` hisobiga alohida biriktiriladi.
+
+Lokal administrator hisobi kerak bo‘lsa, Django superuser yarating:
 
 ```powershell
 python manage.py createsuperuser

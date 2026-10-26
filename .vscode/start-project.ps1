@@ -33,12 +33,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Ma'lumotlar bazasini tayyorlab bo'lmadi."
 }
 
-$userStatus = & $python manage.py shell -c "from django.contrib.auth import get_user_model; print('1' if get_user_model().objects.exists() else '0')"
+$superuserStatus = & $python manage.py shell -c "from django.contrib.auth import get_user_model; print('1' if get_user_model().objects.filter(is_superuser=True).exists() else '0')"
 if ($LASTEXITCODE -ne 0) {
-    throw "Foydalanuvchi hisobini tekshirib bo'lmadi."
+    throw "Administrator hisobini tekshirib bo'lmadi."
 }
-if (($userStatus | Select-Object -Last 1).Trim() -ne "1") {
-    Write-Host "Birinchi ishga tushirish: lokal admin hisobini yarating."
+if (($superuserStatus | Select-Object -Last 1).Trim() -ne "1") {
+    Write-Host "Lokal administrator hisobini yarating."
     & $python manage.py createsuperuser
     if ($LASTEXITCODE -ne 0) {
         throw "Lokal admin hisobini yaratib bo'lmadi."

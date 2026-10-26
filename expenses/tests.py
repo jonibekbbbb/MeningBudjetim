@@ -15,7 +15,9 @@ from .models import ExpenseCategory, Transaction
 
 class TransactionFormTests(TestCase):
     def setUp(self):
+        self.user = get_user_model().objects.create_user(username="form-user")
         self.category, _ = ExpenseCategory.objects.get_or_create(
+            user=self.user,
             name="Oziq-ovqat", defaults={"color": "#22aa88"}
         )
 
@@ -27,7 +29,8 @@ class TransactionFormTests(TestCase):
                 "type": Transaction.Type.EXPENSE,
                 "date": "2026-10-24",
                 "category": "",
-            }
+            },
+            user=self.user,
         )
 
         self.assertFalse(form.is_valid())
@@ -41,7 +44,8 @@ class TransactionFormTests(TestCase):
                 "type": Transaction.Type.INCOME,
                 "date": "2026-10-24",
                 "category": str(self.category.pk),
-            }
+            },
+            user=self.user,
         )
 
         self.assertTrue(form.is_valid(), form.errors)
@@ -56,18 +60,22 @@ class DashboardTests(TestCase):
         )
         self.client.force_login(self.user)
         self.food, _ = ExpenseCategory.objects.get_or_create(
+            user=self.user,
             name="Oziq-ovqat", defaults={"color": "#22aa88"}
         )
         self.transport, _ = ExpenseCategory.objects.get_or_create(
+            user=self.user,
             name="Transport", defaults={"color": "#ee8844"}
         )
         Transaction.objects.create(
+            user=self.user,
             title="Oylik",
             amount=Decimal("5000000"),
             type=Transaction.Type.INCOME,
             date=date(2026, 10, 1),
         )
         Transaction.objects.create(
+            user=self.user,
             title="Bozor",
             amount=Decimal("250000"),
             type=Transaction.Type.EXPENSE,
@@ -75,6 +83,7 @@ class DashboardTests(TestCase):
             date=date(2026, 10, 10),
         )
         Transaction.objects.create(
+            user=self.user,
             title="Avtobus",
             amount=Decimal("50000"),
             type=Transaction.Type.EXPENSE,
@@ -163,7 +172,12 @@ class DashboardTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("dashboard"))
-        self.assertTrue(Transaction.objects.filter(title="Kitob").exists())
+        self.assertTrue(
+            Transaction.objects.filter(
+                user=self.user,
+                title="Kitob",
+            ).exists()
+        )
 
     def test_expense_without_category_is_rejected(self):
         response = self.client.post(
@@ -239,11 +253,20 @@ class CategoryTests(TestCase):
         )
 
         self.assertRedirects(response, reverse("categories"))
-        self.assertTrue(ExpenseCategory.objects.filter(name="Qo‘shimcha").exists())
+        self.assertTrue(
+            ExpenseCategory.objects.filter(
+                user=self.user,
+                name="Qo‘shimcha",
+            ).exists()
+        )
 
     def test_category_in_use_cannot_be_deleted(self):
-        category = ExpenseCategory.objects.create(name="Sinov transport")
+        category = ExpenseCategory.objects.create(
+            user=self.user,
+            name="Sinov transport",
+        )
         Transaction.objects.create(
+            user=self.user,
             title="Metro",
             amount=Decimal("15000"),
             type=Transaction.Type.EXPENSE,
@@ -257,6 +280,26 @@ class CategoryTests(TestCase):
 
         self.assertRedirects(response, reverse("categories"))
         self.assertTrue(ExpenseCategory.objects.filter(pk=category.pk).exists())
+
+    def test_category_names_are_unique_only_per_user(self):
+        ExpenseCategory.objects.create(user=self.user, name="Shaxsiy")
+        another_user = get_user_model().objects.create_user(username="another-user")
+
+        response = self.client.post(
+            reverse("categories"),
+            {"name": "Shaxsiy", "color": "#336699"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            ExpenseCategory.objects.filter(name="Shaxsiy").count(),
+            1,
+        )
+        ExpenseCategory.objects.create(user=another_user, name="Shaxsiy")
+        self.assertEqual(
+            ExpenseCategory.objects.filter(name="Shaxsiy").count(),
+            2,
+        )
 
 
 class AuthenticationTests(TestCase):
@@ -272,6 +315,77 @@ class AuthenticationTests(TestCase):
         response = self.client.get(reverse("login"))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_registration_creates_account_and_private_categories(self):
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "new-budget-user",
+                "password1": "VeryStrongPassword-2048!",
+                "password2": "VeryStrongPassword-2048!",
+            },
+        )
+
+        self.assertRedirects(response, reverse("dashboard"))
+        user = get_user_model().objects.get(username="new-budget-user")
+        self.assertEqual(user.expense_categories.count(), 7)
+        self.assertIn("_auth_user_id", self.client.session)
+
+    def test_registered_users_see_only_their_own_budget(self):
+        other_user = get_user_model().objects.create_user(username="other-budget-user")
+        other_category = ExpenseCategory.objects.create(
+            user=other_user,
+            name="Boshqa odamniki",
+        )
+        other_transaction = Transaction.objects.create(
+            user=other_user,
+            title="Boshqa odamning kirimi",
+            amount=Decimal("500"),
+            type=Transaction.Type.INCOME,
+            date=date(2026, 10, 1),
+        )
+        self.client.force_login(
+            get_user_model().objects.create_user(username="current-budget-user")
+        )
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["transactions"].count(), 0)
+        self.assertEqual(response.context["total_income"], 0)
+        self.assertNotContains(response, "Boshqa odamning kirimi")
+
+        response = self.client.post(
+            reverse("transaction_delete", args=[other_transaction.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(
+            Transaction.objects.filter(pk=other_transaction.pk).exists()
+        )
+
+        response = self.client.get(reverse("categories"))
+        self.assertNotContains(response, "Boshqa odamniki")
+
+        response = self.client.post(
+            reverse("transaction_create"),
+            {
+                "title": "Ruxsatsiz kategoriya",
+                "amount": "100",
+                "type": Transaction.Type.EXPENSE,
+                "category": str(other_category.pk),
+                "date": "2026-10-24",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(
+            Transaction.objects.filter(title="Ruxsatsiz kategoriya").exists()
+        )
+
+        response = self.client.post(
+            reverse("category_delete", args=[other_category.pk])
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(ExpenseCategory.objects.filter(pk=other_category.pk).exists())
 
     def test_login_and_logout(self):
         get_user_model().objects.create_user(

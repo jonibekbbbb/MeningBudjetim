@@ -1,6 +1,27 @@
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.forms import UserCreationForm
 
 from .models import ExpenseCategory, Transaction
+
+
+class RegistrationForm(UserCreationForm):
+    class Meta(UserCreationForm.Meta):
+        model = get_user_model()
+        fields = ("username",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["username"].label = "Login"
+        self.fields["username"].help_text = (
+            "Harf, raqam va @/./+/-/_ belgilaridan foydalaning."
+        )
+        self.fields["password1"].label = "Parol"
+        self.fields["password1"].help_text = (
+            "Kamida 8 belgi bo‘lsin va faqat raqamlardan iborat bo‘lmasin."
+        )
+        self.fields["password2"].label = "Parolni tasdiqlash"
+        self.fields["password2"].help_text = "Parolni qaytadan kiriting."
 
 
 class TransactionForm(forms.ModelForm):
@@ -24,9 +45,11 @@ class TransactionForm(forms.ModelForm):
             "note": "Izoh",
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["category"].queryset = ExpenseCategory.objects.order_by("name")
+        self.fields["category"].queryset = ExpenseCategory.objects.filter(
+            user=user
+        ).order_by("name")
         self.fields["category"].required = False
         self.fields["date"].input_formats = ["%Y-%m-%d"]
         transaction_type = self.data.get("type") or self.initial.get("type")
@@ -75,9 +98,11 @@ class TransactionFilterForm(forms.Form):
         label="Kategoriya",
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["category"].queryset = ExpenseCategory.objects.order_by("name")
+        self.fields["category"].queryset = ExpenseCategory.objects.filter(
+            user=user
+        ).order_by("name")
 
     def clean(self):
         cleaned_data = super().clean()
@@ -97,3 +122,16 @@ class ExpenseCategoryForm(forms.ModelForm):
             "name": forms.TextInput(attrs={"placeholder": "Masalan, Oziq-ovqat"}),
             "color": forms.TextInput(attrs={"type": "color"}),
         }
+
+    def __init__(self, *args, user, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
+        categories = ExpenseCategory.objects.filter(user=self.user, name__iexact=name)
+        if self.instance.pk:
+            categories = categories.exclude(pk=self.instance.pk)
+        if categories.exists():
+            raise forms.ValidationError("Bu kategoriya nomi allaqachon mavjud.")
+        return name

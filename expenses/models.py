@@ -1,10 +1,17 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
 
 
 class ExpenseCategory(models.Model):
-    name = models.CharField(max_length=50, unique=True, verbose_name="Kategoriya nomi")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="expense_categories",
+        verbose_name="Foydalanuvchi",
+    )
+    name = models.CharField(max_length=50, verbose_name="Kategoriya nomi")
     color = models.CharField(
         max_length=7,
         default="#6c63ff",
@@ -21,6 +28,12 @@ class ExpenseCategory(models.Model):
         ordering = ["name"]
         verbose_name = "Xarajat kategoriyasi"
         verbose_name_plural = "Xarajat kategoriyalari"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "name"],
+                name="unique_category_name_per_user",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.name
@@ -31,6 +44,12 @@ class Transaction(models.Model):
         INCOME = "income", "Kirim"
         EXPENSE = "expense", "Chiqim"
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="transactions",
+        verbose_name="Foydalanuvchi",
+    )
     title = models.CharField(max_length=120, verbose_name="Nomi")
     amount = models.DecimalField(
         max_digits=12,

@@ -21,6 +21,12 @@
       {% csrf_token %}
       <button class="button light" type="submit">Chiqish</button>
     </form>
+    <span class="muted">{{ user.username }}</span>
+    {% else %}
+    <nav aria-label="Hisob">
+      <a href="{% url 'login' %}">Kirish</a>
+      <a class="nav-action" href="{% url 'register' %}">Ro‘yxatdan o‘tish</a>
+    </nav>
     {% endif %}
   </header>
 
