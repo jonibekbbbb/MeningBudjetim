@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Kategoriyalar · Budjetim{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div><p class="eyebrow">SOZLAMALAR</p><h1>Xarajat kategoriyalari</h1><p class="muted">Xarajatlaringizni qulay tahlil qilish uchun kategoriyalarni boshqaring.</p></div>
+</section>
+<section class="content-grid category-layout">
+  <article class="panel form-panel">
+    <div class="panel-heading"><div><p class="eyebrow">YANGI KATEGORIYA</p><h2>Kategoriya qo‘shish</h2></div></div>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% for field in form %}
+        <div class="field">
+          {{ field.label_tag }}
+          {{ field }}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <button class="button primary" type="submit">Kategoriyani saqlash</button>
+    </form>
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><div><p class="eyebrow">RO‘YXAT</p><h2>Mavjud kategoriyalar</h2></div></div>
+    {% if categories %}
+      <ul class="category-list">
+        {% for category in categories %}
+          <li>
+            <span class="category-chip"><i style="--category-color: {{ category.color }}"></i>{{ category.name }}</span>
+            <form method="post" action="{% url 'category_delete' category.pk %}">
+              {% csrf_token %}
+              <button class="icon-button" type="submit" aria-label="{{ category.name }} kategoriyasini o‘chirish">×</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-chart">Hozircha kategoriya yo‘q. Birinchi kategoriyani yarating.</div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

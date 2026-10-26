@@ -1,0 +1,32 @@
+{% load static %}
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d0e13">
+  <title>{% block title %}Budjetim{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'expenses/styles.css' %}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}"><span class="brand-mark">B</span> Budjetim</a>
+    <nav aria-label="Asosiy menyu">
+      <a href="{% url 'dashboard' %}">Bosh sahifa</a>
+      <a href="{% url 'categories' %}">Kategoriyalar</a>
+      <a class="nav-action" href="{% url 'transaction_create' %}">+ Tranzaksiya</a>
+    </nav>
+  </header>
+
+  <main class="page">
+    {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}
+          <div class="message {{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

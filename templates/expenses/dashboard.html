@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Bosh sahifa · Budjetim{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">SHAXSIY MOLIYA</p>
+    <h1>Moliyaviy holatingiz</h1>
+    <p class="muted">Kirim va chiqimlaringizni bir joyda nazorat qiling.</p>
+  </div>
+  <div class="quick-actions">
+    <a class="button income-button" href="{% url 'transaction_create' %}?type=income">+ Kirim qo‘shish</a>
+    <a class="button expense-button" href="{% url 'transaction_create' %}?type=expense">− Chiqim qo‘shish</a>
+  </div>
+</section>
+
+<section class="summary-grid" aria-label="Umumiy hisob">
+  <article class="summary-card balance-card">
+    <span class="summary-label">Joriy balans</span>
+    <strong>{{ balance|floatformat:2 }} <small>so‘m</small></strong>
+    <span class="summary-hint">Tanlangan davr bo‘yicha</span>
+  </article>
+  <article class="summary-card">
+    <span class="summary-label">Jami kirim</span>
+    <strong class="income-text">+{{ total_income|floatformat:2 }} <small>so‘m</small></strong>
+    <span class="summary-hint">Daromadlar yig‘indisi</span>
+  </article>
+  <article class="summary-card">
+    <span class="summary-label">Jami chiqim</span>
+    <strong class="expense-text">−{{ total_expenses|floatformat:2 }} <small>so‘m</small></strong>
+    <span class="summary-hint">Xarajatlar yig‘indisi</span>
+  </article>
+</section>
+
+<section class="content-grid">
+  <article class="panel filter-panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">QIDIRUV</p><h2>Davrni tanlang</h2></div>
+    </div>
+    <form method="get" class="filter-form">
+      {{ filter_form.non_field_errors }}
+      <div class="field">
+        {{ filter_form.start_date.label_tag }}
+        {{ filter_form.start_date }}
+        {{ filter_form.start_date.errors }}
+      </div>
+      <div class="field">
+        {{ filter_form.end_date.label_tag }}
+        {{ filter_form.end_date }}
+        {{ filter_form.end_date.errors }}
+      </div>
+      <div class="field">
+        {{ filter_form.category.label_tag }}
+        {{ filter_form.category }}
+        {{ filter_form.category.errors }}
+      </div>
+      <div class="filter-actions">
+        <button class="button primary" type="submit">Filtrlash</button>
+        <a class="button light" href="{% url 'dashboard' %}">Tozalash</a>
+      </div>
+    </form>
+  </article>
+
+  <article class="panel chart-panel">
+    <div class="panel-heading">
+      <div><p class="eyebrow">TAHLIL</p><h2>Kategoriyalar bo‘yicha chiqim</h2></div>
+    </div>
+    {% if chart_data %}
+      <div class="category-bars">
+        {% for item in chart_data %}
+          <div class="category-bar">
+            <div class="category-bar-heading">
+              <span class="category-chip"><i style="--category-color: {{ item.color }}"></i>{{ item.name }}</span>
+              <strong>{{ item.total|floatformat:2 }} so‘m</strong>
+            </div>
+            <div class="bar-track" role="progressbar" aria-label="{{ item.name }} xarajatlari" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ item.width_percent|floatformat:0 }}">
+              <span class="bar-fill" style="width: {{ item.width_percent|floatformat:1 }}%; --category-color: {{ item.color }}"></span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-chart">Tanlangan davrda kategoriyali chiqimlar yo‘q.</div>
+    {% endif %}
+  </article>
+</section>
+
+<section class="panel transactions-panel">
+  <div class="panel-heading">
+    <div><p class="eyebrow">TARIX</p><h2>Tranzaksiyalar</h2></div>
+    <a class="text-link" href="{% url 'transaction_create' %}">Yangi qo‘shish <span aria-hidden="true">↗</span></a>
+  </div>
+  {% if transactions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Nomi</th><th>Kategoriya</th><th>Sana</th><th>Izoh</th><th class="amount-cell">Summa</th><th><span class="sr-only">Amallar</span></th></tr>
+        </thead>
+        <tbody>
+          {% for transaction in transactions %}
+            <tr>
+              <td>
+                <span class="transaction-name">{{ transaction.title }}</span>
+                <span class="mobile-type {{ transaction.type }}">{{ transaction.get_type_display }}</span>
+              </td>
+              <td>
+                {% if transaction.category %}
+                  <span class="category-chip"><i style="--category-color: {{ transaction.category.color }}"></i>{{ transaction.category.name }}</span>
+                {% else %}<span class="muted">—</span>{% endif %}
+              </td>
+              <td>{{ transaction.date|date:"d.m.Y" }}</td>
+              <td class="note-cell">{{ transaction.note|default:"—"|truncatechars:45 }}</td>
+              <td class="amount-cell {% if transaction.type == 'income' %}income-text{% else %}expense-text{% endif %}">
+                {% if transaction.type == "income" %}+{% else %}−{% endif %}{{ transaction.amount|floatformat:2 }}
+                <small>so‘m</small>
+              </td>
+              <td class="row-action">
+                <form method="post" action="{% url 'transaction_delete' transaction.pk %}">
+                  {% csrf_token %}
+                  <button class="icon-button" type="submit" aria-label="{{ transaction.title }} tranzaksiyasini o‘chirish">×</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <span class="empty-icon">↗</span>
+      <h3>Hozircha tranzaksiyalar yo‘q</h3>
+      <p>Kirim yoki chiqim qo‘shib, hisobingizni yuritishni boshlang.</p>
+      <a class="button primary" href="{% url 'transaction_create' %}">Birinchi tranzaksiyani qo‘shish</a>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}
