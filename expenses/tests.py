@@ -429,3 +429,21 @@ class DeploymentAccountCommandTests(TestCase):
     def test_command_requires_deployment_credentials(self):
         with self.assertRaises(CommandError):
             call_command("ensure_deploy_user")
+
+    @patch.dict(
+        "os.environ",
+        {
+            "DJANGO_DEPLOY_USERNAME": "budget-admin-deploy",
+            "DJANGO_DEPLOY_PASSWORD": "Budget-admin-deploy-Strong-2026!",
+        },
+    )
+    def test_command_rejects_password_similar_to_username(self):
+        with self.assertRaisesMessage(
+            CommandError,
+            "not too similar to DJANGO_DEPLOY_USERNAME",
+        ):
+            call_command("ensure_deploy_user")
+
+        self.assertFalse(
+            get_user_model().objects.filter(username="budget-admin-deploy").exists()
+        )

@@ -2,6 +2,7 @@ import os
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
 
@@ -18,8 +19,16 @@ class Command(BaseCommand):
             )
 
         User = get_user_model()
+        try:
+            validate_password(password, user=User(username=username))
+        except ValidationError as error:
+            raise CommandError(
+                "DJANGO_DEPLOY_PASSWORD is invalid. Set a strong password that "
+                "is not too similar to DJANGO_DEPLOY_USERNAME in Render "
+                "environment variables."
+            ) from error
+
         user, _ = User.objects.get_or_create(username=username)
-        validate_password(password, user=user)
         user.is_staff = True
         user.is_superuser = True
         user.set_password(password)
